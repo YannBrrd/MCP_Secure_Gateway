@@ -1,0 +1,137 @@
+# PII Policies Configuration
+# Defines detection patterns, column classifications, and handling rules
+
+detection_patterns:
+  email:
+    pattern: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    description: "Email addresses"
+    sensitivity: high
+    default_action: mask
+
+  phone:
+    pattern: '(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}'
+    description: "US phone numbers"
+    sensitivity: high
+    default_action: mask
+
+  phone_international:
+    pattern: '\+[1-9]\d{1,14}'
+    description: "International phone numbers (E.164 format)"
+    sensitivity: high
+    default_action: mask
+
+  ssn:
+    pattern: '\b\d{3}-\d{2}-\d{4}\b'
+    description: "US Social Security Numbers"
+    sensitivity: critical
+    default_action: deny
+
+  iban:
+    pattern: '[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}'
+    description: "International Bank Account Numbers"
+    sensitivity: critical
+    default_action: hash
+
+  credit_card:
+    pattern: '\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b'
+    description: "Credit card numbers (Visa, MC, Amex, Discover)"
+    sensitivity: critical
+    default_action: deny
+
+  ip_address:
+    pattern: '\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b'
+    description: "IPv4 addresses"
+    sensitivity: medium
+    default_action: hash
+
+  date_of_birth:
+    pattern: '\b(?:0[1-9]|1[0-2])[-/](?:0[1-9]|[12][0-9]|3[01])[-/](?:19|20)\d{2}\b'
+    description: "Date of birth (MM/DD/YYYY or MM-DD-YYYY)"
+    sensitivity: high
+    default_action: mask
+
+# Column name patterns that indicate PII
+column_classifications:
+  # Exact match (case-insensitive)
+  exact:
+    - email
+    - email_address
+    - phone
+    - phone_number
+    - mobile
+    - cell
+    - ssn
+    - social_security
+    - social_security_number
+    - iban
+    - bank_account
+    - credit_card
+    - cc_number
+    - card_number
+    - password
+    - passwd
+    - secret
+    - api_key
+    - access_token
+    - refresh_token
+    - dob
+    - date_of_birth
+    - birthdate
+    - birth_date
+
+  # Partial match (case-insensitive) - column contains these strings
+  contains:
+    - _email
+    - _phone
+    - _ssn
+    - _iban
+    - _password
+    - _secret
+    - _token
+    - first_name
+    - last_name
+    - full_name
+    - customer_name
+    - user_name
+    - address
+    - street
+    - city
+    - zip
+    - postal
+    - country
+
+  # Regex patterns for column names
+  patterns:
+    - 'name_?(?:first|last|full)?'
+    - '(?:home|work|cell|mobile)_?(?:phone|tel)'
+    - 'addr(?:ess)?_?(?:line)?_?\d?'
+
+# Sensitivity levels determine strictness
+sensitivity_levels:
+  critical:
+    allowed_policies: [deny]
+    description: "Highly sensitive data that should never be exposed"
+  high:
+    allowed_policies: [deny, hash]
+    description: "Sensitive PII requiring strong protection"
+  medium:
+    allowed_policies: [deny, hash, mask]
+    description: "Moderately sensitive data"
+  low:
+    allowed_policies: [deny, hash, mask]
+    description: "Less sensitive but still requires handling"
+
+# Backend-specific overrides
+backend_overrides:
+  snowflake:
+    # Snowflake-specific column patterns
+    additional_pii_columns:
+      - variant_data  # JSON columns often contain PII
+  databricks:
+    additional_pii_columns: []
+  bigquery:
+    additional_pii_columns: []
+  athena:
+    additional_pii_columns: []
+  trino:
+    additional_pii_columns: []

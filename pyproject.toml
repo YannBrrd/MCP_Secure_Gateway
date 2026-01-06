@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-secure-gateway"
+version = "0.1.0"
+description = "A secure MCP server acting as a data gateway with PII protection"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Yann", email = "yann@example.com" }
+]
+keywords = ["mcp", "security", "pii", "data-gateway", "snowflake", "databricks", "trino"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "mcp>=1.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pyyaml>=6.0",
+    "structlog>=24.0.0",
+    # Backend connectors
+    "snowflake-connector-python>=3.0.0",
+    "databricks-sql-connector>=3.0.0",
+    "trino>=0.328.0",
+    "google-cloud-bigquery>=3.0.0",
+    "google-cloud-storage>=2.0.0",
+    "boto3>=1.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+]
+
+[project.scripts]
+mcp-gateway = "mcp_gateway.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mcp_gateway"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "PT", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --cov=mcp_gateway --cov-report=term-missing"
