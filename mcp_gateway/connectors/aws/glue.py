@@ -38,9 +38,7 @@ class GlueConnector(BaseConnector):
             )
             self._connected = True
         except ImportError:
-            raise ImportError(
-                "boto3 is required. Install with: pip install boto3"
-            )
+            raise ImportError("boto3 is required. Install with: pip install boto3")
 
     async def disconnect(self) -> None:
         """Close Glue client."""
@@ -143,17 +141,17 @@ class GlueConnector(BaseConnector):
                 all_cols = all_cols + tbl["PartitionKeys"]
 
             for col in all_cols:
-                classification = self._classifier.classify_column(
-                    col["Name"], self.backend_name
+                classification = self._classifier.classify_column(col["Name"], self.backend_name)
+                columns.append(
+                    {
+                        "column_name": col["Name"],
+                        "data_type": col["Type"],
+                        "comment": col.get("Comment", ""),
+                        "is_pii": classification.is_pii,
+                        "pii_sensitivity": classification.sensitivity.value,
+                        "pii_category": classification.pii_category,
+                    }
                 )
-                columns.append({
-                    "column_name": col["Name"],
-                    "data_type": col["Type"],
-                    "comment": col.get("Comment", ""),
-                    "is_pii": classification.is_pii,
-                    "pii_sensitivity": classification.sensitivity.value,
-                    "pii_category": classification.pii_category,
-                })
 
             return {
                 "database": db,
@@ -184,12 +182,14 @@ class GlueConnector(BaseConnector):
                         classification = self._classifier.classify_column(
                             col["Name"], self.backend_name
                         )
-                        columns.append({
-                            "column_name": col["Name"],
-                            "data_type": col["Type"],
-                            "is_pii": classification.is_pii,
-                            "pii_sensitivity": classification.sensitivity.value,
-                        })
+                        columns.append(
+                            {
+                                "column_name": col["Name"],
+                                "data_type": col["Type"],
+                                "is_pii": classification.is_pii,
+                                "pii_sensitivity": classification.sensitivity.value,
+                            }
+                        )
                     tables[tbl["Name"]] = columns
 
             return {
@@ -258,15 +258,15 @@ class GlueConnector(BaseConnector):
 
         partitions = []
         for part in response.get("Partitions", []):
-            partitions.append({
-                "values": part["Values"],
-                "location": part["StorageDescriptor"].get("Location", ""),
-                "creation_time": (
-                    part["CreationTime"].isoformat()
-                    if "CreationTime" in part
-                    else None
-                ),
-            })
+            partitions.append(
+                {
+                    "values": part["Values"],
+                    "location": part["StorageDescriptor"].get("Location", ""),
+                    "creation_time": (
+                        part["CreationTime"].isoformat() if "CreationTime" in part else None
+                    ),
+                }
+            )
 
         return partitions
 
@@ -290,11 +290,13 @@ class GlueConnector(BaseConnector):
 
         filters = []
         if database:
-            filters.append({
-                "Key": "DatabaseName",
-                "Value": database,
-                "Comparator": "EQUALS",
-            })
+            filters.append(
+                {
+                    "Key": "DatabaseName",
+                    "Value": database,
+                    "Comparator": "EQUALS",
+                }
+            )
 
         response = self._client.search_tables(
             SearchText=search_text,

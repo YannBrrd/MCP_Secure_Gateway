@@ -161,8 +161,6 @@ def verify_hash_format(value: str) -> bool:
     if "_HASH_" in value:
         parts = value.split("_HASH_")
         if len(parts) == 2:
-            return len(parts[1]) == 24 and all(
-                c in "0123456789ABCDEF" for c in parts[1]
-            )
+            return len(parts[1]) == 24 and all(c in "0123456789ABCDEF" for c in parts[1])
 
     return False

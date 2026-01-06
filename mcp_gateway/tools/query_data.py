@@ -300,9 +300,7 @@ class QueryDataTool:
                 # Hash any PII in filter values before sending to backend
                 for key, detection in filter_pii_result.items():
                     if detection.has_pii:
-                        input_data.filters[key] = self._hasher.hash_value(
-                            input_data.filters[key]
-                        )
+                        input_data.filters[key] = self._hasher.hash_value(input_data.filters[key])
 
             # Get connector for backend
             connector = get_connector(input_data.backend.value)
@@ -319,9 +317,7 @@ class QueryDataTool:
             )
 
             # Execute query with timing
-            with self._audit.timed_operation(
-                invocation_id, input_data.backend.value, "query"
-            ):
+            with self._audit.timed_operation(invocation_id, input_data.backend.value, "query"):
                 result = await connector.execute_intent(intent_query)
 
             # Apply PII policy to results
@@ -368,9 +364,7 @@ class QueryDataTool:
                 pii_status={
                     "policy_applied": input_data.pii_policy.value,
                     "pii_detected": bool(pii_cols or result.pii_columns_detected),
-                    "columns_processed": list(
-                        set(pii_cols + result.pii_columns_detected)
-                    ),
+                    "columns_processed": list(set(pii_cols + result.pii_columns_detected)),
                     "pii_types": list(set(pii_types + result.pii_types_detected)),
                 },
             )
@@ -458,8 +452,7 @@ class QueryDataTool:
         # Handle DENY policy
         if policy == PIIPolicy.DENY:
             raise ValueError(
-                f"PII detected in output columns: {pii_cols}. "
-                "Query rejected due to 'deny' policy."
+                f"PII detected in output columns: {pii_cols}. Query rejected due to 'deny' policy."
             )
 
         # Apply HASH policy

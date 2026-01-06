@@ -44,11 +44,7 @@ class SchemaClassification:
     @property
     def critical_columns(self) -> list[str]:
         """Get columns with critical sensitivity."""
-        return [
-            c.column_name
-            for c in self.columns
-            if c.sensitivity == PIISensitivity.CRITICAL
-        ]
+        return [c.column_name for c in self.columns if c.sensitivity == PIISensitivity.CRITICAL]
 
     @property
     def high_sensitivity_columns(self) -> list[str]:
@@ -81,20 +77,14 @@ class PIIClassifier:
             col_config = policies.get("column_classifications", {})
 
             # Load exact matches (case-insensitive)
-            self._exact_matches = {
-                name.lower() for name in col_config.get("exact", [])
-            }
+            self._exact_matches = {name.lower() for name in col_config.get("exact", [])}
 
             # Load contains patterns
-            self._contains_patterns = [
-                p.lower() for p in col_config.get("contains", [])
-            ]
+            self._contains_patterns = [p.lower() for p in col_config.get("contains", [])]
 
             # Compile regex patterns
             for pattern in col_config.get("patterns", []):
-                self._regex_patterns.append(
-                    re.compile(pattern, re.IGNORECASE)
-                )
+                self._regex_patterns.append(re.compile(pattern, re.IGNORECASE))
 
             # Load backend-specific overrides
             backend_config = policies.get("backend_overrides", {})
@@ -109,13 +99,28 @@ class PIIClassifier:
     def _load_default_rules(self) -> None:
         """Load hardcoded default classification rules."""
         self._exact_matches = {
-            "email", "email_address", "phone", "phone_number",
-            "ssn", "social_security", "iban", "password",
-            "credit_card", "dob", "date_of_birth",
+            "email",
+            "email_address",
+            "phone",
+            "phone_number",
+            "ssn",
+            "social_security",
+            "iban",
+            "password",
+            "credit_card",
+            "dob",
+            "date_of_birth",
         }
         self._contains_patterns = [
-            "_email", "_phone", "_ssn", "first_name", "last_name",
-            "full_name", "address", "_password", "_token",
+            "_email",
+            "_phone",
+            "_ssn",
+            "first_name",
+            "last_name",
+            "full_name",
+            "address",
+            "_password",
+            "_token",
         ]
         self._regex_patterns = [
             re.compile(r"name_?(?:first|last|full)?", re.IGNORECASE),
@@ -239,9 +244,7 @@ class PIIClassifier:
         Returns:
             SchemaClassification with all column classifications.
         """
-        classifications = [
-            self.classify_column(col, backend) for col in columns
-        ]
+        classifications = [self.classify_column(col, backend) for col in columns]
 
         pii_columns = [c.column_name for c in classifications if c.is_pii]
 
@@ -267,10 +270,7 @@ class PIIClassifier:
         Returns:
             List of column names that are not classified as PII.
         """
-        return [
-            col for col in columns
-            if not self.classify_column(col, backend).is_pii
-        ]
+        return [col for col in columns if not self.classify_column(col, backend).is_pii]
 
     def get_columns_by_sensitivity(
         self,
@@ -300,6 +300,7 @@ class PIIClassifier:
         max_level = sensitivity_order[max_sensitivity]
 
         return [
-            col for col in columns
+            col
+            for col in columns
             if sensitivity_order[self.classify_column(col, backend).sensitivity] <= max_level
         ]

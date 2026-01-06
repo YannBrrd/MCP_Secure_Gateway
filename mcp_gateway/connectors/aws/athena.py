@@ -14,16 +14,36 @@ from mcp_gateway.connectors.base import BaseConnector, IntentQuery, QueryResult
 IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 # Whitelist of allowed SQL aggregation functions
-ALLOWED_AGGREGATIONS = frozenset({
-    "COUNT", "SUM", "AVG", "MIN", "MAX", "STDDEV", "VARIANCE",
-    "APPROX_DISTINCT", "APPROX_PERCENTILE", "ARBITRARY",
-})
+ALLOWED_AGGREGATIONS = frozenset(
+    {
+        "COUNT",
+        "SUM",
+        "AVG",
+        "MIN",
+        "MAX",
+        "STDDEV",
+        "VARIANCE",
+        "APPROX_DISTINCT",
+        "APPROX_PERCENTILE",
+        "ARBITRARY",
+    }
+)
 
 # Whitelist of allowed tables (should be configured per deployment)
-ALLOWED_TABLES = frozenset({
-    "customers", "users", "orders", "products", "transactions",
-    "sales", "logs", "events", "clickstream", "inventory",
-})
+ALLOWED_TABLES = frozenset(
+    {
+        "customers",
+        "users",
+        "orders",
+        "products",
+        "transactions",
+        "sales",
+        "logs",
+        "events",
+        "clickstream",
+        "inventory",
+    }
+)
 
 
 class AthenaConnector(BaseConnector):
@@ -55,9 +75,7 @@ class AthenaConnector(BaseConnector):
             )
             self._connected = True
         except ImportError:
-            raise ImportError(
-                "boto3 is required. Install with: pip install boto3"
-            )
+            raise ImportError("boto3 is required. Install with: pip install boto3")
 
     async def disconnect(self) -> None:
         """Close Athena client."""
@@ -139,9 +157,7 @@ class AthenaConnector(BaseConnector):
         start_time = time.time()
 
         while True:
-            response = self._client.get_query_execution(
-                QueryExecutionId=query_execution_id
-            )
+            response = self._client.get_query_execution(QueryExecutionId=query_execution_id)
 
             state = response["QueryExecution"]["Status"]["State"]
 
@@ -156,9 +172,7 @@ class AthenaConnector(BaseConnector):
             if time.time() - start_time > max_wait_seconds:
                 # Cancel the query
                 self._client.stop_query_execution(QueryExecutionId=query_execution_id)
-                raise TimeoutError(
-                    f"Athena query timed out after {max_wait_seconds} seconds"
-                )
+                raise TimeoutError(f"Athena query timed out after {max_wait_seconds} seconds")
 
             # Wait before polling again (non-blocking)
             await asyncio.sleep(1)
@@ -241,8 +255,13 @@ class AthenaConnector(BaseConnector):
     def _escape_string_value(self, value: str) -> str:
         """Safely escape a string value for Athena SQL."""
         dangerous_patterns = [
-            r";\s*--", r";\s*\w", r"\/\*", r"\*\/", r"xp_",
-            r"EXEC\s", r"EXECUTE\s",
+            r";\s*--",
+            r";\s*\w",
+            r"\/\*",
+            r"\*\/",
+            r"xp_",
+            r"EXEC\s",
+            r"EXECUTE\s",
         ]
         for pattern in dangerous_patterns:
             if re.search(pattern, value, re.IGNORECASE):
@@ -277,6 +296,7 @@ class AthenaConnector(BaseConnector):
                     conditions.append(f"{key} = {value}")
                 elif isinstance(value, float):
                     import math
+
                     if math.isnan(value) or math.isinf(value):
                         raise ValueError("NaN and Inf values not allowed")
                     conditions.append(f"{key} = {value}")
@@ -316,8 +336,7 @@ class AthenaConnector(BaseConnector):
                 return table
 
         raise ValueError(
-            f"Cannot infer table from intent: {intent}. "
-            "Please specify entity explicitly."
+            f"Cannot infer table from intent: {intent}. Please specify entity explicitly."
         )
 
     async def get_schema_metadata(
@@ -340,15 +359,15 @@ class AthenaConnector(BaseConnector):
             response = glue.get_table(DatabaseName=db, Name=table)
             columns = []
             for col in response["Table"]["StorageDescriptor"]["Columns"]:
-                classification = self._classifier.classify_column(
-                    col["Name"], self.backend_name
+                classification = self._classifier.classify_column(col["Name"], self.backend_name)
+                columns.append(
+                    {
+                        "column_name": col["Name"],
+                        "data_type": col["Type"],
+                        "is_pii": classification.is_pii,
+                        "pii_sensitivity": classification.sensitivity.value,
+                    }
                 )
-                columns.append({
-                    "column_name": col["Name"],
-                    "data_type": col["Type"],
-                    "is_pii": classification.is_pii,
-                    "pii_sensitivity": classification.sensitivity.value,
-                })
             return {
                 "database": db,
                 "tables": {table: columns},
@@ -364,12 +383,14 @@ class AthenaConnector(BaseConnector):
                     classification = self._classifier.classify_column(
                         col["Name"], self.backend_name
                     )
-                    columns.append({
-                        "column_name": col["Name"],
-                        "data_type": col["Type"],
-                        "is_pii": classification.is_pii,
-                        "pii_sensitivity": classification.sensitivity.value,
-                    })
+                    columns.append(
+                        {
+                            "column_name": col["Name"],
+                            "data_type": col["Type"],
+                            "is_pii": classification.is_pii,
+                            "pii_sensitivity": classification.sensitivity.value,
+                        }
+                    )
                 tables[tbl["Name"]] = columns
 
             return {

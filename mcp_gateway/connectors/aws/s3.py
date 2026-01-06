@@ -37,9 +37,7 @@ class S3Connector(BaseConnector):
             )
             self._connected = True
         except ImportError:
-            raise ImportError(
-                "boto3 is required. Install with: pip install boto3"
-            )
+            raise ImportError("boto3 is required. Install with: pip install boto3")
 
     async def disconnect(self) -> None:
         """Close S3 client."""
@@ -107,12 +105,14 @@ class S3Connector(BaseConnector):
 
         rows = []
         for obj in response.get("Contents", []):
-            rows.append({
-                "key": obj["Key"],
-                "size_bytes": obj["Size"],
-                "last_modified": obj["LastModified"].isoformat(),
-                "storage_class": obj.get("StorageClass", "STANDARD"),
-            })
+            rows.append(
+                {
+                    "key": obj["Key"],
+                    "size_bytes": obj["Size"],
+                    "last_modified": obj["LastModified"].isoformat(),
+                    "storage_class": obj.get("StorageClass", "STANDARD"),
+                }
+            )
 
         return QueryResult(
             rows=rows,
@@ -155,10 +155,12 @@ class S3Connector(BaseConnector):
                     not self._settings.allowed_buckets
                     or bucket["Name"] in self._settings.allowed_buckets
                 ):
-                    buckets.append({
-                        "name": bucket["Name"],
-                        "created": bucket["CreationDate"].isoformat(),
-                    })
+                    buckets.append(
+                        {
+                            "name": bucket["Name"],
+                            "created": bucket["CreationDate"].isoformat(),
+                        }
+                    )
             return {"buckets": buckets}
 
     async def list_tables(
@@ -208,7 +210,4 @@ class S3Connector(BaseConnector):
             Delimiter=delimiter,
         )
 
-        return [
-            p["Prefix"]
-            for p in response.get("CommonPrefixes", [])
-        ]
+        return [p["Prefix"] for p in response.get("CommonPrefixes", [])]

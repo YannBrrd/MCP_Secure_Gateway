@@ -44,8 +44,7 @@ class BigQueryConnector(BaseConnector):
             self._connected = True
         except ImportError:
             raise ImportError(
-                "google-cloud-bigquery is required. "
-                "Install with: pip install google-cloud-bigquery"
+                "google-cloud-bigquery is required. Install with: pip install google-cloud-bigquery"
             )
 
     async def disconnect(self) -> None:
@@ -152,21 +151,13 @@ class BigQueryConnector(BaseConnector):
 
                 # Create appropriate parameter type
                 if isinstance(value, str):
-                    params.append(
-                        bigquery.ScalarQueryParameter(param_name, "STRING", value)
-                    )
+                    params.append(bigquery.ScalarQueryParameter(param_name, "STRING", value))
                 elif isinstance(value, int):
-                    params.append(
-                        bigquery.ScalarQueryParameter(param_name, "INT64", value)
-                    )
+                    params.append(bigquery.ScalarQueryParameter(param_name, "INT64", value))
                 elif isinstance(value, float):
-                    params.append(
-                        bigquery.ScalarQueryParameter(param_name, "FLOAT64", value)
-                    )
+                    params.append(bigquery.ScalarQueryParameter(param_name, "FLOAT64", value))
                 elif isinstance(value, bool):
-                    params.append(
-                        bigquery.ScalarQueryParameter(param_name, "BOOL", value)
-                    )
+                    params.append(bigquery.ScalarQueryParameter(param_name, "BOOL", value))
 
             sql_parts.append("WHERE " + " AND ".join(conditions))
 
@@ -201,8 +192,7 @@ class BigQueryConnector(BaseConnector):
                 return table
 
         raise ValueError(
-            f"Cannot infer table from intent: {intent}. "
-            "Please specify entity explicitly."
+            f"Cannot infer table from intent: {intent}. Please specify entity explicitly."
         )
 
     async def get_schema_metadata(
@@ -225,16 +215,16 @@ class BigQueryConnector(BaseConnector):
 
             columns = []
             for field in bq_table.schema:
-                classification = self._classifier.classify_column(
-                    field.name, self.backend_name
+                classification = self._classifier.classify_column(field.name, self.backend_name)
+                columns.append(
+                    {
+                        "column_name": field.name,
+                        "data_type": field.field_type,
+                        "nullable": field.mode != "REQUIRED",
+                        "is_pii": classification.is_pii,
+                        "pii_sensitivity": classification.sensitivity.value,
+                    }
                 )
-                columns.append({
-                    "column_name": field.name,
-                    "data_type": field.field_type,
-                    "nullable": field.mode != "REQUIRED",
-                    "is_pii": classification.is_pii,
-                    "pii_sensitivity": classification.sensitivity.value,
-                })
 
             return {
                 "project": self._settings.project_id,
@@ -248,16 +238,16 @@ class BigQueryConnector(BaseConnector):
                 full_table = self._client.get_table(bq_table.reference)
                 columns = []
                 for field in full_table.schema:
-                    classification = self._classifier.classify_column(
-                        field.name, self.backend_name
+                    classification = self._classifier.classify_column(field.name, self.backend_name)
+                    columns.append(
+                        {
+                            "column_name": field.name,
+                            "data_type": field.field_type,
+                            "nullable": field.mode != "REQUIRED",
+                            "is_pii": classification.is_pii,
+                            "pii_sensitivity": classification.sensitivity.value,
+                        }
                     )
-                    columns.append({
-                        "column_name": field.name,
-                        "data_type": field.field_type,
-                        "nullable": field.mode != "REQUIRED",
-                        "is_pii": classification.is_pii,
-                        "pii_sensitivity": classification.sensitivity.value,
-                    })
                 tables[bq_table.table_id] = columns
 
             return {
@@ -316,8 +306,7 @@ class GCSConnector(BaseConnector):
             self._connected = True
         except ImportError:
             raise ImportError(
-                "google-cloud-storage is required. "
-                "Install with: pip install google-cloud-storage"
+                "google-cloud-storage is required. Install with: pip install google-cloud-storage"
             )
 
     async def disconnect(self) -> None:
@@ -401,11 +390,16 @@ class GCSConnector(BaseConnector):
             # List allowed buckets
             buckets = []
             for bucket in self._client.list_buckets():
-                if not self._settings.allowed_buckets or bucket.name in self._settings.allowed_buckets:
-                    buckets.append({
-                        "name": bucket.name,
-                        "location": bucket.location,
-                    })
+                if (
+                    not self._settings.allowed_buckets
+                    or bucket.name in self._settings.allowed_buckets
+                ):
+                    buckets.append(
+                        {
+                            "name": bucket.name,
+                            "location": bucket.location,
+                        }
+                    )
             return {"buckets": buckets}
 
     async def list_tables(

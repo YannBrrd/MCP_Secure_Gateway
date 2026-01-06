@@ -81,10 +81,12 @@ def create_server() -> Server:
                 content=[
                     TextContent(
                         type="text",
-                        text=json.dumps({
-                            "success": False,
-                            "error": f"Unknown tool: {name}. Only 'query_data' is available.",
-                        }),
+                        text=json.dumps(
+                            {
+                                "success": False,
+                                "error": f"Unknown tool: {name}. Only 'query_data' is available.",
+                            }
+                        ),
                     )
                 ],
                 isError=True,

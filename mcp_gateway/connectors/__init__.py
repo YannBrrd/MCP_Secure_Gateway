@@ -36,8 +36,7 @@ def get_connector(backend: str) -> BaseConnector:
     backend_lower = backend.lower()
     if backend_lower not in CONNECTOR_REGISTRY:
         raise ValueError(
-            f"Unsupported backend: {backend}. "
-            f"Available backends: {list(CONNECTOR_REGISTRY.keys())}"
+            f"Unsupported backend: {backend}. Available backends: {list(CONNECTOR_REGISTRY.keys())}"
         )
     return CONNECTOR_REGISTRY[backend_lower]()
 

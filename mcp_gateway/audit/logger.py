@@ -79,9 +79,7 @@ class AuditLogger:
                 )
             ),
             context_class=dict,
-            logger_factory=structlog.PrintLoggerFactory(
-                file=self._get_log_output()
-            ),
+            logger_factory=structlog.PrintLoggerFactory(file=self._get_log_output()),
             cache_logger_on_first_use=True,
         )
 

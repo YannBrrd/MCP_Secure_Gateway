@@ -400,10 +400,7 @@ class TestSQLRejection:
         ]
 
         for intent in test_inputs:
-            has_sql = any(
-                re.search(pattern, intent, re.IGNORECASE)
-                for pattern in sql_patterns
-            )
+            has_sql = any(re.search(pattern, intent, re.IGNORECASE) for pattern in sql_patterns)
             assert has_sql, f"Expected SQL detection in: {intent}"
 
     def test_safe_intents_pass(self) -> None:
@@ -429,10 +426,7 @@ class TestSQLRejection:
         ]
 
         for intent in safe_intents:
-            has_sql = any(
-                re.search(pattern, intent, re.IGNORECASE)
-                for pattern in sql_patterns
-            )
+            has_sql = any(re.search(pattern, intent, re.IGNORECASE) for pattern in sql_patterns)
             assert not has_sql, f"False positive SQL detection in: {intent}"
 
 

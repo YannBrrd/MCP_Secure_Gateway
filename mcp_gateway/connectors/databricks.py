@@ -164,8 +164,7 @@ class DatabricksConnector(BaseConnector):
                 return table
 
         raise ValueError(
-            f"Cannot infer table from intent: {intent}. "
-            "Please specify entity explicitly."
+            f"Cannot infer table from intent: {intent}. Please specify entity explicitly."
         )
 
     async def get_schema_metadata(
@@ -204,13 +203,15 @@ class DatabricksConnector(BaseConnector):
 
             classification = self._classifier.classify_column(col_name, self.backend_name)
 
-            tables[table_name].append({
-                "column_name": col_name,
-                "data_type": data_type,
-                "nullable": nullable == "YES",
-                "is_pii": classification.is_pii,
-                "pii_sensitivity": classification.sensitivity.value,
-            })
+            tables[table_name].append(
+                {
+                    "column_name": col_name,
+                    "data_type": data_type,
+                    "nullable": nullable == "YES",
+                    "is_pii": classification.is_pii,
+                    "pii_sensitivity": classification.sensitivity.value,
+                }
+            )
 
         return {
             "catalog": catalog,

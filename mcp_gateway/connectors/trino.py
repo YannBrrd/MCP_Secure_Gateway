@@ -12,16 +12,38 @@ from mcp_gateway.connectors.base import BaseConnector, IntentQuery, QueryResult
 IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 # Whitelist of allowed SQL aggregation functions
-ALLOWED_AGGREGATIONS = frozenset({
-    "COUNT", "SUM", "AVG", "MIN", "MAX", "STDDEV", "VARIANCE",
-    "ARRAY_AGG", "BOOL_AND", "BOOL_OR", "EVERY", "APPROX_DISTINCT",
-})
+ALLOWED_AGGREGATIONS = frozenset(
+    {
+        "COUNT",
+        "SUM",
+        "AVG",
+        "MIN",
+        "MAX",
+        "STDDEV",
+        "VARIANCE",
+        "ARRAY_AGG",
+        "BOOL_AND",
+        "BOOL_OR",
+        "EVERY",
+        "APPROX_DISTINCT",
+    }
+)
 
 # Whitelist of allowed tables (should be configured per deployment)
-ALLOWED_TABLES = frozenset({
-    "customers", "users", "orders", "products", "transactions",
-    "sales", "metrics", "events", "inventory", "logs",
-})
+ALLOWED_TABLES = frozenset(
+    {
+        "customers",
+        "users",
+        "orders",
+        "products",
+        "transactions",
+        "sales",
+        "metrics",
+        "events",
+        "inventory",
+        "logs",
+    }
+)
 
 
 class TrinoConnector(BaseConnector):
@@ -68,9 +90,7 @@ class TrinoConnector(BaseConnector):
             self._cursor = self._connection.cursor()
             self._connected = True
         except ImportError:
-            raise ImportError(
-                "trino is required. Install with: pip install trino"
-            )
+            raise ImportError("trino is required. Install with: pip install trino")
 
     async def disconnect(self) -> None:
         """Close Trino connection."""
@@ -247,14 +267,11 @@ class TrinoConnector(BaseConnector):
         # Build SELECT clause with validated aggregations
         select_cols = "*"
         if query.aggregations:
-            validated_aggs = [
-                self._validate_aggregation(agg) for agg in query.aggregations
-            ]
+            validated_aggs = [self._validate_aggregation(agg) for agg in query.aggregations]
             select_cols = ", ".join(validated_aggs)
             if query.group_by:
                 validated_groups = [
-                    self._validate_identifier(col, "GROUP BY column")
-                    for col in query.group_by
+                    self._validate_identifier(col, "GROUP BY column") for col in query.group_by
                 ]
                 select_cols += ", " + ", ".join(validated_groups)
 
@@ -280,16 +297,13 @@ class TrinoConnector(BaseConnector):
         # GROUP BY with validated identifiers
         if query.group_by:
             validated_groups = [
-                self._validate_identifier(col, "GROUP BY column")
-                for col in query.group_by
+                self._validate_identifier(col, "GROUP BY column") for col in query.group_by
             ]
             sql_parts.append("GROUP BY " + ", ".join(validated_groups))
 
         # ORDER BY with validated expressions
         if query.order_by:
-            validated_orders = [
-                self._validate_order_by(expr) for expr in query.order_by
-            ]
+            validated_orders = [self._validate_order_by(expr) for expr in query.order_by]
             sql_parts.append("ORDER BY " + ", ".join(validated_orders))
 
         # LIMIT (always an integer, safe)
@@ -315,8 +329,7 @@ class TrinoConnector(BaseConnector):
                 return table
 
         raise ValueError(
-            f"Cannot infer table from intent: {intent}. "
-            "Please specify entity explicitly."
+            f"Cannot infer table from intent: {intent}. Please specify entity explicitly."
         )
 
     async def get_schema_metadata(
@@ -353,13 +366,15 @@ class TrinoConnector(BaseConnector):
 
             classification = self._classifier.classify_column(col_name, self.backend_name)
 
-            tables[table_name].append({
-                "column_name": col_name,
-                "data_type": data_type,
-                "nullable": nullable == "YES",
-                "is_pii": classification.is_pii,
-                "pii_sensitivity": classification.sensitivity.value,
-            })
+            tables[table_name].append(
+                {
+                    "column_name": col_name,
+                    "data_type": data_type,
+                    "nullable": nullable == "YES",
+                    "is_pii": classification.is_pii,
+                    "pii_sensitivity": classification.sensitivity.value,
+                }
+            )
 
         return {
             "catalog": catalog,

@@ -133,10 +133,7 @@ class PIISettings(BaseSettings):
             ValueError: If default salt is used without explicit override.
         """
         default_salt = "change-me-in-production"
-        if (
-            self.hash_salt.get_secret_value() == default_salt
-            and not self.allow_insecure_salt
-        ):
+        if self.hash_salt.get_secret_value() == default_salt and not self.allow_insecure_salt:
             raise ValueError(
                 "SECURITY ERROR: Using default PII hash salt in production is not allowed. "
                 "Please set the PII_HASH_SALT environment variable to a secure random value. "

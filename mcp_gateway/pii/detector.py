@@ -62,9 +62,7 @@ class PIIDetector:
             for pii_type, config in self._patterns.items():
                 pattern_str = config.get("pattern", "")
                 if pattern_str:
-                    self._compiled_patterns[pii_type] = re.compile(
-                        pattern_str, re.IGNORECASE
-                    )
+                    self._compiled_patterns[pii_type] = re.compile(pattern_str, re.IGNORECASE)
         except FileNotFoundError:
             # Use default patterns if policies file not found
             self._load_default_patterns()
@@ -96,9 +94,7 @@ class PIIDetector:
 
         self._patterns = default_patterns
         for pii_type, config in self._patterns.items():
-            self._compiled_patterns[pii_type] = re.compile(
-                config["pattern"], re.IGNORECASE
-            )
+            self._compiled_patterns[pii_type] = re.compile(config["pattern"], re.IGNORECASE)
 
     def detect(self, value: Any) -> DetectionResult:
         """
