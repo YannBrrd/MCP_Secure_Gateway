@@ -1,5 +1,7 @@
 # MCP Secure Gateway
 
+[![CI](https://github.com/YannBrrd/MCP_Secure_Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/YannBrrd/MCP_Secure_Gateway/actions/workflows/ci.yml)
+
 A Model Context Protocol (MCP) server that acts as a **Secure Data Gateway** with strict enterprise-grade guarantees for PII protection.
 
 ## Overview
