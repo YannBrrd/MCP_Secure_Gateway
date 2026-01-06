@@ -172,7 +172,7 @@ class BaseConnector(ABC):
                 classified_pii_cols.add(col)
 
         # Then, scan actual values
-        has_pii, pii_types, column_pii = self._detector.detect_in_rows(rows)
+        _, pii_types, column_pii = self._detector.detect_in_rows(rows)
 
         # Combine schema-based and value-based PII columns
         all_pii_cols = classified_pii_cols | set(column_pii.keys())

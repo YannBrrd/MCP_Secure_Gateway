@@ -161,7 +161,7 @@ class PIIDetector:
             elif isinstance(value, list):
                 # Check each item in lists
                 combined = DetectionResult(has_pii=False)
-                for i, item in enumerate(value):
+                for item in value:
                     if isinstance(item, dict):
                         nested = self.detect_in_dict(item)
                         for result in nested.values():

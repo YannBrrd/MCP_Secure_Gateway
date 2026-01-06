@@ -301,7 +301,7 @@ class TestPIIRedactor:
             {"id": 1, "email": "a@test.com", "status": "active"},
             {"id": 2, "email": "b@test.com", "status": "inactive"},
         ]
-        result, pii_found = redactor.redact_rows(rows)
+        result, _pii_found = redactor.redact_rows(rows)
 
         assert len(result) == 2
         assert "a@test.com" not in str(result)
@@ -339,7 +339,7 @@ class TestPIIPolicyEnforcement:
         rows = [{"id": 1, "email": "test@example.com"}]
 
         # Simulate deny policy check
-        has_pii, pii_types, column_pii = detector.detect_in_rows(rows)
+        has_pii, _pii_types, column_pii = detector.detect_in_rows(rows)
         assert has_pii
 
         # In real code, this would raise ValueError

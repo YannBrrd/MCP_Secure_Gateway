@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import time
 from collections.abc import Generator
@@ -74,7 +75,7 @@ class AuditLogger:
                 getattr(
                     structlog.stdlib,
                     self._settings.audit.log_level,
-                    structlog.stdlib.INFO,
+                    20,  # INFO level
                 )
             ),
             context_class=dict,
@@ -98,10 +99,8 @@ class AuditLogger:
     def close(self) -> None:
         """Close the audit logger and release resources."""
         if self._log_file_handle is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._log_file_handle.close()
-            except Exception:
-                pass  # Ignore errors on close
             self._log_file_handle = None
 
     def __del__(self) -> None:

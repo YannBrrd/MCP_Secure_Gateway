@@ -161,14 +161,14 @@ class PIIClassifier:
                 )
 
         # Check regex patterns
-        for pattern in self._regex_patterns:
-            if pattern.search(name_lower):
+        for pattern in self._regex_patterns:  # type: ignore[assignment]
+            if pattern.search(name_lower):  # type: ignore[attr-defined]
                 return ColumnClassification(
                     column_name=column_name,
                     is_pii=True,
                     sensitivity=PIISensitivity.MEDIUM,
                     pii_category="inferred",
-                    match_reason=f"regex_pattern:{pattern.pattern}",
+                    match_reason=f"regex_pattern:{pattern.pattern}",  # type: ignore[attr-defined]
                 )
 
         # Check backend-specific overrides

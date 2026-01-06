@@ -44,7 +44,7 @@ def create_server() -> Server:
     """
     settings = get_settings()
     server = Server(settings.name)
-    audit = get_audit_logger()
+    _audit = get_audit_logger()
 
     # Initialize tools
     query_tool = QueryDataTool()
@@ -112,7 +112,7 @@ async def run_server() -> None:
     audit = get_audit_logger()
 
     # Log session start
-    session_id = audit.log_session_start()
+    _session_id = audit.log_session_start()
 
     invocation_count = 0
 
