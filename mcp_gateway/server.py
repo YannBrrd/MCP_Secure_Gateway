@@ -1,18 +1,24 @@
 """
 MCP Secure Gateway Server
 
-This is the main entry point for the MCP server. It exposes a single tool
-(query_data) that provides secure, PII-safe access to enterprise data platforms.
+This server implements three Advanced Tool Use patterns from Anthropic:
 
-The agent MUST:
-- Use business intent, not SQL
-- Specify which backend to query
-- Choose a PII policy for result handling
+1. **Tool Search Tool**: A meta-tool for dynamic discovery. Instead of
+   loading all tool definitions upfront (token overhead), the agent sees
+   only `search_tools` + `query_data` by default. Other tools are
+   discoverable on demand via search_tools.
 
-The agent CANNOT:
-- Send raw SQL queries
-- Receive raw PII in results
-- Access backends directly
+2. **Tool Use Examples**: Each tool includes `input_examples` that teach
+   the model correct invocation patterns beyond what JSON schemas express.
+
+3. **Programmatic Tool Calling**: The `batch_query` tool allows executing
+   multiple queries in one call, avoiding N round-trips and keeping
+   intermediate results out of the context window.
+
+Core Security Guarantees:
+- The agent NEVER receives raw PII
+- The agent NEVER sends raw SQL
+- All data passes through PII detection and policy enforcement
 """
 
 from __future__ import annotations
@@ -32,12 +38,52 @@ from mcp.types import (
 
 from mcp_gateway.audit import get_audit_logger
 from mcp_gateway.config import get_settings
-from mcp_gateway.tools import QueryDataTool
+from mcp_gateway.tools import (
+    BatchQueryTool,
+    CheckPIIPolicyTool,
+    DescribeEntityTool,
+    ListBackendsTool,
+    QueryDataTool,
+    SearchToolsTool,
+)
+
+
+def _build_tool_definition(tool_instance: Any) -> Tool:
+    """
+    Build an MCP Tool definition with examples metadata.
+
+    If the tool has `input_examples`, they are included in the
+    tool description to implement the Tool Use Examples pattern.
+    """
+    description = tool_instance.description
+
+    # Append examples to description if available
+    if hasattr(tool_instance, "input_examples") and tool_instance.input_examples:
+        examples_text = "\n\nExamples:"
+        for ex in tool_instance.input_examples:
+            examples_text += f"\n- {ex['description']}: {json.dumps(ex['input'])}"
+            if "output_summary" in ex:
+                examples_text += f"\n  → {ex['output_summary']}"
+        description += examples_text
+
+    return Tool(
+        name=tool_instance.name,
+        description=description,
+        inputSchema=tool_instance.input_schema,
+    )
 
 
 def create_server() -> Server:
     """
     Create and configure the MCP server.
+
+    Tool Loading Strategy (Tool Search pattern):
+    - Always loaded: search_tools, query_data (core functionality)
+    - Discoverable: list_backends, describe_entity, check_pii_policy, batch_query
+
+    When clients call list_tools(), they get ALL tools. But for API-level
+    consumers using defer_loading, only the always-loaded tools consume
+    context tokens. The search_tools meta-tool discovers the rest.
 
     Returns:
         Configured MCP Server instance.
@@ -46,37 +92,59 @@ def create_server() -> Server:
     server = Server(settings.name)
     _audit = get_audit_logger()
 
-    # Initialize tools
+    # Initialize all tools
+    search_tool = SearchToolsTool()
     query_tool = QueryDataTool()
+    list_backends_tool = ListBackendsTool()
+    describe_entity_tool = DescribeEntityTool()
+    check_pii_tool = CheckPIIPolicyTool()
+    batch_query_tool = BatchQueryTool()
+
+    # Tool registry for dispatch
+    tool_registry: dict[str, Any] = {
+        search_tool.name: search_tool,
+        query_tool.name: query_tool,
+        list_backends_tool.name: list_backends_tool,
+        describe_entity_tool.name: describe_entity_tool,
+        check_pii_tool.name: check_pii_tool,
+        batch_query_tool.name: batch_query_tool,
+    }
+
+    # Tools always loaded in context (low token footprint)
+    always_loaded = {search_tool.name, query_tool.name}
 
     @server.list_tools()
     async def list_tools() -> ListToolsResult:
-        """List available tools - only query_data is exposed."""
-        return ListToolsResult(
-            tools=[
-                Tool(
-                    name=query_tool.name,
-                    description=query_tool.description,
-                    inputSchema=query_tool.input_schema,
-                )
-            ]
-        )
+        """
+        List available tools.
+
+        All tools are returned for MCP protocol compliance. Clients
+        implementing the Tool Search pattern can use the `annotations`
+        field or tool metadata to decide which tools to defer.
+        """
+        tools = []
+        for name, tool_instance in tool_registry.items():
+            tool_def = _build_tool_definition(tool_instance)
+            tools.append(tool_def)
+
+        return ListToolsResult(tools=tools)
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
         """
         Handle tool calls.
 
-        Only the query_data tool is available.
+        Dispatches to the appropriate tool handler from the registry.
 
         Args:
-            name: Tool name (must be "query_data").
+            name: Tool name.
             arguments: Tool arguments.
 
         Returns:
             CallToolResult with JSON response.
         """
-        if name != query_tool.name:
+        if name not in tool_registry:
+            available = list(tool_registry.keys())
             return CallToolResult(
                 content=[
                     TextContent(
@@ -84,7 +152,11 @@ def create_server() -> Server:
                         text=json.dumps(
                             {
                                 "success": False,
-                                "error": f"Unknown tool: {name}. Only 'query_data' is available.",
+                                "error": (
+                                    f"Unknown tool: {name}. "
+                                    f"Available tools: {available}. "
+                                    "Use 'search_tools' to discover tools by capability."
+                                ),
                             }
                         ),
                     )
@@ -92,8 +164,8 @@ def create_server() -> Server:
                 isError=True,
             )
 
-        # Execute the tool
-        result = await query_tool.execute(arguments)
+        tool_instance = tool_registry[name]
+        result = await tool_instance.execute(arguments)
 
         return CallToolResult(
             content=[

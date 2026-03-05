@@ -210,6 +210,70 @@ class QueryDataTool:
         )
 
     @property
+    def input_examples(self) -> list[dict[str, Any]]:
+        """
+        Example invocations for the query_data tool.
+
+        These examples teach the model correct usage patterns beyond
+        what the JSON schema alone can express: when to use optional
+        parameters, which combinations make sense, etc.
+        """
+        return [
+            {
+                "description": "Simple query with business intent",
+                "input": {
+                    "backend": "snowflake",
+                    "intent": "Get total sales by region for Q4 2024",
+                    "pii_policy": "mask",
+                },
+                "output_summary": "Returns sales data with any PII values masked",
+            },
+            {
+                "description": "Filtered query with aggregation",
+                "input": {
+                    "backend": "bigquery",
+                    "intent": "Count active customers by country",
+                    "filters": {"status": "active"},
+                    "aggregations": ["COUNT(*)"],
+                    "group_by": ["country"],
+                    "entity": "customers",
+                    "pii_policy": "hash",
+                },
+                "output_summary": (
+                    "Returns customer counts grouped by country, "
+                    "with PII hashed for linkability"
+                ),
+            },
+            {
+                "description": "Query with hash policy for data linkage",
+                "input": {
+                    "backend": "databricks",
+                    "intent": "Get customer emails and order counts",
+                    "entity": "customer_orders",
+                    "pii_policy": "hash",
+                    "limit": 50,
+                },
+                "output_summary": (
+                    "Returns customer data with emails hashed deterministically "
+                    "(same email always produces same hash for joining)"
+                ),
+            },
+            {
+                "description": "Strict compliance query with deny policy",
+                "input": {
+                    "backend": "snowflake",
+                    "intent": "Get product revenue by category",
+                    "entity": "products",
+                    "pii_policy": "deny",
+                },
+                "output_summary": (
+                    "Returns product data only if NO PII is detected. "
+                    "Query is rejected if any PII values appear in results."
+                ),
+            },
+        ]
+
+    @property
     def input_schema(self) -> dict[str, Any]:
         """JSON Schema for tool input."""
         return {
