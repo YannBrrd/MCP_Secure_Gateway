@@ -85,6 +85,22 @@ class TestSearchToolsTool:
         result = await search_tool.execute({"query": "anything"})
         assert result.total_tools == 5  # query_data, list_backends, describe_entity, check_pii, batch
 
+    @pytest.mark.asyncio
+    async def test_search_fuzzy_matching(self, search_tool: SearchToolsTool) -> None:
+        """Test that fuzzy substring matching finds tools."""
+        result = await search_tool.execute({"query": "schemat"})
+        assert result.success
+        names = [m["name"] for m in result.matches]
+        assert "describe_entity" in names
+
+    @pytest.mark.asyncio
+    async def test_search_by_tool_name(self, search_tool: SearchToolsTool) -> None:
+        """Test that searching by tool name fragment works."""
+        result = await search_tool.execute({"query": "batch"})
+        assert result.success
+        names = [m["name"] for m in result.matches]
+        assert "batch_query" in names
+
     def test_search_tool_properties(self, search_tool: SearchToolsTool) -> None:
         """Test tool metadata."""
         assert search_tool.name == "search_tools"
@@ -275,6 +291,60 @@ class TestServerToolRegistry:
         tool_def = _build_tool_definition(MinimalTool())
         assert tool_def.description == "A test tool"
         assert "Examples:" not in tool_def.description
+
+    def test_tool_definitions_have_annotations(self) -> None:
+        """Test that tools have MCP ToolAnnotations for standard hints."""
+        from mcp_gateway.server import _build_tool_definition
+
+        tool = QueryDataTool()
+        tool_def = _build_tool_definition(tool)
+
+        assert tool_def.annotations is not None
+        assert tool_def.annotations.readOnlyHint is True
+
+    def test_tool_definitions_have_defer_loading_meta(self) -> None:
+        """Test that tools include defer_loading in meta."""
+        from mcp_gateway.server import _build_tool_definition
+
+        # query_data is always loaded
+        query_tool = QueryDataTool()
+        query_def = _build_tool_definition(query_tool)
+        meta = query_def.model_dump().get("meta", {})
+        assert meta is not None
+        assert meta["defer_loading"] is False
+
+        # list_backends is deferred
+        lb_tool = ListBackendsTool()
+        lb_def = _build_tool_definition(lb_tool)
+        meta = lb_def.model_dump().get("meta", {})
+        assert meta is not None
+        assert meta["defer_loading"] is True
+
+    def test_tool_meta_contains_structured_examples(self) -> None:
+        """Test that tool meta includes structured input_examples."""
+        from mcp_gateway.server import _build_tool_definition
+
+        tool = QueryDataTool()
+        tool_def = _build_tool_definition(tool)
+        meta = tool_def.model_dump().get("meta", {})
+
+        assert meta is not None
+        assert "input_examples" in meta
+        examples = meta["input_examples"]
+        assert len(examples) >= 3
+        for ex in examples:
+            assert "description" in ex
+            assert "input" in ex
+
+    def test_all_tools_have_annotations(self) -> None:
+        """Test that all registered tools have MCP annotations."""
+        from mcp_gateway.server import TOOL_ANNOTATIONS
+
+        expected = {
+            "search_tools", "query_data", "list_backends",
+            "describe_entity", "check_pii_policy", "batch_query",
+        }
+        assert set(TOOL_ANNOTATIONS.keys()) == expected
 
 
 class TestBatchQueryTool:

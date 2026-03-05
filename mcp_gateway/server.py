@@ -34,6 +34,7 @@ from mcp.types import (
     ListToolsResult,
     TextContent,
     Tool,
+    ToolAnnotations,
 )
 
 from mcp_gateway.audit import get_audit_logger
@@ -47,17 +48,48 @@ from mcp_gateway.tools import (
     SearchToolsTool,
 )
 
+# MCP annotations per tool for standard hints
+TOOL_ANNOTATIONS: dict[str, ToolAnnotations] = {
+    "search_tools": ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+    ),
+    "query_data": ToolAnnotations(
+        readOnlyHint=True,
+    ),
+    "list_backends": ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+    ),
+    "describe_entity": ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+    ),
+    "check_pii_policy": ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+    ),
+    "batch_query": ToolAnnotations(
+        readOnlyHint=True,
+    ),
+}
+
+# Tools always loaded in context vs. deferred (Tool Search pattern)
+ALWAYS_LOADED_TOOLS = {"search_tools", "query_data"}
+
 
 def _build_tool_definition(tool_instance: Any) -> Tool:
     """
-    Build an MCP Tool definition with examples metadata.
+    Build an MCP Tool definition with annotations, examples, and defer metadata.
 
-    If the tool has `input_examples`, they are included in the
-    tool description to implement the Tool Use Examples pattern.
+    Implements all three Advanced Tool Use patterns:
+    - Tool annotations for MCP-standard hints (readOnly, idempotent)
+    - Tool meta with defer_loading flag for the Tool Search pattern
+    - Input examples appended to description for Tool Use Examples pattern
     """
     description = tool_instance.description
 
-    # Append examples to description if available
+    # Append examples to description for model guidance
     if hasattr(tool_instance, "input_examples") and tool_instance.input_examples:
         examples_text = "\n\nExamples:"
         for ex in tool_instance.input_examples:
@@ -66,10 +98,19 @@ def _build_tool_definition(tool_instance: Any) -> Tool:
                 examples_text += f"\n  → {ex['output_summary']}"
         description += examples_text
 
+    # Build meta dict with defer_loading and structured examples
+    meta: dict[str, Any] = {
+        "defer_loading": tool_instance.name not in ALWAYS_LOADED_TOOLS,
+    }
+    if hasattr(tool_instance, "input_examples") and tool_instance.input_examples:
+        meta["input_examples"] = tool_instance.input_examples
+
     return Tool(
         name=tool_instance.name,
         description=description,
         inputSchema=tool_instance.input_schema,
+        annotations=TOOL_ANNOTATIONS.get(tool_instance.name),
+        meta=meta,
     )
 
 
@@ -110,20 +151,18 @@ def create_server() -> Server:
         batch_query_tool.name: batch_query_tool,
     }
 
-    # Tools always loaded in context (low token footprint)
-    always_loaded = {search_tool.name, query_tool.name}
-
     @server.list_tools()
     async def list_tools() -> ListToolsResult:
         """
-        List available tools.
+        List available tools with annotations and defer_loading metadata.
 
         All tools are returned for MCP protocol compliance. Clients
-        implementing the Tool Search pattern can use the `annotations`
-        field or tool metadata to decide which tools to defer.
+        implementing the Tool Search pattern can check
+        ``tool.meta.defer_loading`` to decide which definitions to
+        load into the model's context upfront vs. discover on demand.
         """
         tools = []
-        for name, tool_instance in tool_registry.items():
+        for _name, tool_instance in tool_registry.items():
             tool_def = _build_tool_definition(tool_instance)
             tools.append(tool_def)
 

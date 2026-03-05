@@ -12,6 +12,7 @@ Anthropic's Advanced Tool Use guidance.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -271,65 +272,94 @@ class BatchQueryTool:
             },
         ]
 
+    async def _execute_single(
+        self,
+        query: SingleQuery,
+        summary_only: bool,
+    ) -> dict[str, Any]:
+        """Execute a single query within the batch and format its result."""
+        query_args = {
+            "backend": query.backend,
+            "intent": query.intent,
+            "filters": query.filters,
+            "pii_policy": query.pii_policy,
+            "entity": query.entity,
+            "aggregations": query.aggregations,
+            "group_by": query.group_by,
+            "order_by": query.order_by,
+            "limit": query.limit,
+        }
+
+        result = await self._query_tool.execute(query_args)
+        result_dict = result.to_dict()
+
+        if summary_only:
+            # Strip actual data to save tokens
+            return {
+                "query_id": query.query_id,
+                "success": result_dict["success"],
+                "row_count": result_dict["row_count"],
+                "columns": result_dict["columns"],
+                "pii_status": result_dict["pii_status"],
+                "metadata": result_dict["metadata"],
+                "error": result_dict.get("error"),
+            }
+
+        result_dict["query_id"] = query.query_id
+        return result_dict
+
     async def execute(self, arguments: dict[str, Any]) -> BatchQueryOutput:
-        """Execute the batch_query tool."""
+        """
+        Execute the batch_query tool.
+
+        Queries are run concurrently with asyncio.gather to minimize
+        total latency. This is the core of the Programmatic Tool
+        Calling pattern: one tool call replaces N sequential calls.
+        """
         try:
             input_data = BatchQueryInput(**arguments)
 
-            invocation_id = self._audit.log_tool_invocation(
+            self._audit.log_tool_invocation(
                 tool_name=self.name,
                 backend="batch",
                 intent=f"batch query: {len(input_data.queries)} queries",
                 pii_policy="mixed",
             )
 
-            results = []
+            # Execute all queries concurrently
+            tasks = [
+                self._execute_single(query, input_data.summary_only)
+                for query in input_data.queries
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Process results, handling any exceptions from individual queries
+            processed: list[dict[str, Any]] = []
             successful = 0
             failed = 0
 
-            for query in input_data.queries:
-                query_args = {
-                    "backend": query.backend,
-                    "intent": query.intent,
-                    "filters": query.filters,
-                    "pii_policy": query.pii_policy,
-                    "entity": query.entity,
-                    "aggregations": query.aggregations,
-                    "group_by": query.group_by,
-                    "order_by": query.order_by,
-                    "limit": query.limit,
-                }
-
-                result = await self._query_tool.execute(query_args)
-                result_dict = result.to_dict()
-
-                if input_data.summary_only:
-                    # Strip actual data to save tokens
-                    result_dict = {
-                        "query_id": query.query_id,
-                        "success": result_dict["success"],
-                        "row_count": result_dict["row_count"],
-                        "columns": result_dict["columns"],
-                        "pii_status": result_dict["pii_status"],
-                        "metadata": result_dict["metadata"],
-                        "error": result_dict.get("error"),
-                    }
-                else:
-                    result_dict["query_id"] = query.query_id
-
-                results.append(result_dict)
-
-                if result.success:
-                    successful += 1
-                else:
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    error_msg = create_safe_error_message(result)
+                    processed.append({
+                        "query_id": input_data.queries[i].query_id,
+                        "success": False,
+                        "error": f"Query failed: {error_msg}",
+                    })
                     failed += 1
+                else:
+                    processed.append(result)
+                    if result.get("success", False):
+                        successful += 1
+                    else:
+                        failed += 1
 
             return BatchQueryOutput(
                 success=failed == 0,
                 total_queries=len(input_data.queries),
                 successful=successful,
                 failed=failed,
-                results=results,
+                results=processed,
             )
 
         except Exception as e:

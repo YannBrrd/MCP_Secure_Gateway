@@ -262,7 +262,22 @@ class SearchToolsTool:
                 desc_lower = tool["description"].lower()
                 desc_matches = sum(1 for w in query_words if w in desc_lower and len(w) > 2)
 
-                score = len(overlap) * 2 + desc_matches
+                # Fuzzy: substring matching (e.g. "schemat" matches "schema")
+                fuzzy_hits = 0
+                for qw in query_words:
+                    if len(qw) < 3:
+                        continue
+                    for kw in tool_keywords:
+                        if qw != kw and (qw in kw or kw in qw):
+                            fuzzy_hits += 1
+                            break
+
+                # Also match against tool name
+                name_match = 1 if any(
+                    w in tool["name"] for w in query_words if len(w) > 2
+                ) else 0
+
+                score = len(overlap) * 3 + desc_matches + fuzzy_hits + name_match
 
                 if score > 0:
                     matches.append(
