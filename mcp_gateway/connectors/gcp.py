@@ -293,7 +293,7 @@ class GCSConnector(BaseConnector):
     async def connect(self) -> None:
         """Initialize GCS client."""
         try:
-            from google.cloud import storage  # type: ignore[attr-defined]
+            from google.cloud import storage
 
             if self._settings.credentials_path:
                 self._client = storage.Client.from_service_account_json(

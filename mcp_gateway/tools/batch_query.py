@@ -348,6 +348,7 @@ class BatchQueryTool:
                     })
                     failed += 1
                 else:
+                    assert isinstance(result, dict)
                     processed.append(result)
                     if result.get("success", False):
                         successful += 1
