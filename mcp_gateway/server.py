@@ -105,13 +105,13 @@ def _build_tool_definition(tool_instance: Any) -> Tool:
     if hasattr(tool_instance, "input_examples") and tool_instance.input_examples:
         meta["input_examples"] = tool_instance.input_examples
 
-    return Tool(
-        name=tool_instance.name,
-        description=description,
-        inputSchema=tool_instance.input_schema,
-        annotations=TOOL_ANNOTATIONS.get(tool_instance.name),
-        meta=meta,
-    )
+    return Tool.model_validate({
+        "name": tool_instance.name,
+        "description": description,
+        "inputSchema": tool_instance.input_schema,
+        "annotations": TOOL_ANNOTATIONS.get(tool_instance.name),
+        "_meta": meta,
+    })
 
 
 def create_server() -> Server:

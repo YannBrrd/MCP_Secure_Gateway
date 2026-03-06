@@ -8,6 +8,8 @@ Tests for advanced tool use patterns:
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 from mcp_gateway.tools import (
@@ -392,3 +394,43 @@ class TestBatchQueryTool:
             ex for ex in examples if ex.get("input", {}).get("summary_only", False)
         ]
         assert len(summary_examples) >= 1, "Should have at least one summary_only example"
+
+    @pytest.mark.asyncio
+    async def test_batch_handles_individual_query_exception(self, tool: BatchQueryTool) -> None:
+        """Test that a failing query in a batch doesn't crash the whole batch."""
+        call_count = 0
+
+        async def mock_execute_single(query, summary_only):
+            nonlocal call_count
+            call_count += 1
+            if query.query_id == "fail_me":
+                raise RuntimeError("Connection refused")
+            return {
+                "query_id": query.query_id,
+                "success": True,
+                "row_count": 5,
+                "columns": ["id"],
+                "rows": [],
+                "pii_status": "clean",
+                "metadata": {},
+            }
+
+        with patch.object(tool, "_execute_single", side_effect=mock_execute_single):
+            result = await tool.execute({
+                "queries": [
+                    {"query_id": "ok_query", "backend": "snowflake", "intent": "Get sales data"},
+                    {"query_id": "fail_me", "backend": "bigquery", "intent": "Get order data"},
+                ],
+            })
+
+        assert result.total_queries == 2
+        assert result.successful == 1
+        assert result.failed == 1
+        assert result.success is False
+
+        ok_result = next(r for r in result.results if r["query_id"] == "ok_query")
+        assert ok_result["success"] is True
+
+        fail_result = next(r for r in result.results if r["query_id"] == "fail_me")
+        assert fail_result["success"] is False
+        assert "Query failed" in fail_result["error"]
